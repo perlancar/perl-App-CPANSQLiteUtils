@@ -8,7 +8,7 @@ use strict;
 use warnings;
 use Log::Any '$log';
 
-use CPANuse Exporter;
+use Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(
                        list_local_cpan_packages
@@ -61,6 +61,9 @@ my %query_args = (
         cmdline_aliases => {q=>{}},
         pos => 0,
     },
+    detail => {
+        schema => 'bool',
+    },
 );
 
 $SPEC{list_local_cpan_authors} = {
@@ -109,9 +112,13 @@ sub list_local_cpan_authors {
         push @where, "(cpanid LIKE ? OR fullname LIKE ? OR email like ?)";
         push @bind, $q, $q, $q;
     }
-    my $sql = "SELECT * FROM auths".
+    my $sql = "SELECT
+  cpanid id,
+  fullname name,
+  email
+FROM auths".
         (@where ? " WHERE ".join(" AND ", @where) : "").
-            " ORDER BY cpanid";
+            " ORDER BY id";
 
     my @res;
     my $sth = $dbh->prepare($sql);
@@ -165,22 +172,29 @@ sub list_local_cpan_packages {
         push @bind, $q;
     }
     if ($args{author}) {
-        push @where, "(dist_id IN (SELECT dist_id FROM dists WHERE auth_id IN (SELECT auth_id FROM auths WHERE cpanid=?)))";
+        #push @where, "(dist_id IN (SELECT dist_id FROM dists WHERE auth_id IN (SELECT auth_id FROM auths WHERE cpanid=?)))";
+        push @where, "(author=?)";
         push @bind, $args{author};
     }
     if ($args{dist}) {
-        push @where, "(dist_id=(SELECT dist_id FROM dists WHERE dist_name=?))";
+        #push @where, "(dist_id=(SELECT dist_id FROM dists WHERE dist_name=?))";
+        push @where, "(dist=?)";
         push @bind, $args{dist};
     }
-    my $sql = "SELECT * FROM mods".
+    my $sql = "SELECT
+  mod_name name,
+  mod_vers version,
+  (SELECT dist_name FROM dists WHERE dist_id=mods.dist_id) dist,
+  (SELECT cpanid FROM auths WHERE auth_id=(SELECT auth_id FROM dists WHERE dist_id=mods.dist_id)) author
+FROM mods".
         (@where ? " WHERE ".join(" AND ", @where) : "").
-            " ORDER BY mod_name,e";
+            " ORDER BY name";
 
     my @res;
     my $sth = $dbh->prepare($sql);
     $sth->execute(@bind);
     while (my $row = $sth->fetchrow_hashref) {
-        push @res, $detail ? $row : $row->{mod_name};
+        push @res, $detail ? $row : $row->{name};
     }
     \@res;
 }
@@ -242,14 +256,20 @@ sub list_local_cpan_dists {
     my @bind;
     my @where;
     if (length($q)) {
-        push @where, "(dist_name LIKE ?)";
+        push @where, "(name LIKE ?)";
         push @bind, $q;
     }
     if ($args{author}) {
-        push @where, "(dist_id IN (SELECT dist_id FROM dists WHERE auth_id IN (SELECT auth_id FROM auths WHERE cpanid=?)))";
+        #push @where, "(dist_id IN (SELECT dist_id FROM dists WHERE auth_id IN (SELECT auth_id FROM auths WHERE cpanid=?)))";
+        push @where, "(author=?)";
         push @bind, $args{author};
     }
-    my $sql = "SELECT * FROM dists".
+    my $sql = "SELECT
+  dist_name name,
+  dist_vers version,
+  dist_file file,
+  (SELECT cpanid FROM auths WHERE auth_id=dists.auth_id) author
+FROM dists".
         (@where ? " WHERE ".join(" AND ", @where) : "").
             " ORDER BY name";
 
@@ -257,7 +277,7 @@ sub list_local_cpan_dists {
     my $sth = $dbh->prepare($sql);
     $sth->execute(@bind);
     while (my $row = $sth->fetchrow_hashref) {
-        push @res, $detail ? $row : $row->{dist_name};
+        push @res, $detail ? $row : $row->{name};
     }
     \@res;
 }
