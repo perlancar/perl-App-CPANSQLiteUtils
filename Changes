@@ -1,5 +1,10 @@
 Revision history for App-CPANSQLiteUtils
 
+0.03    2015-01-10 (PERLANCAR)
+
+	- Add completion to --author and --dist.
+
+
 0.02    2015-01-10 (PERLANCAR)
 
 	- Move deps & revdeps query functions from CPAN::SQLite::CPANMeta.
