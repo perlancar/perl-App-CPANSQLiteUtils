@@ -1,5 +1,12 @@
 Revision history for App-CPANSQLiteUtils
 
+0.02    2015-01-10 (PERLANCAR)
+
+	- Move deps & revdeps query functions from CPAN::SQLite::CPANMeta.
+
+	- Share config with cpandb-cpanmeta.
+
+
 0.01    2015-01-10 (PERLANCAR)
 
         - First version.
